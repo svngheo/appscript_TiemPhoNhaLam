@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      color: #333;
+      text-align: center;
+    }
+    h1 {
+      color: #444;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    .form-group input, .form-group select, .form-group button {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+    }
+    .form-group select {
+      margin-bottom: 10px;
+    }
+    .order-items {
+      margin-top: 20px;
+    }
+    .order-items table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .order-items th, .order-items td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .order-items th {
+      background-color: #f4f4f4;
+    }
+    .order-items tr:hover {
+      background-color: #f9f9f9;
+    }
+    .total {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Tiệm Phở Nhà Làm</h1>
+    <div class="form-group">
+      <label for="tableNumber">Bàn số:</label>
+      <input type="number" id="tableNumber" placeholder="Nhập số bàn" min="1">
+    </div>
+    <div class="form-group">
+      <label for="menu">Chọn món ăn:</label>
+      <select id="menu"></select>
+    </div>
+    <div class="form-group">
+      <button onclick="addItem()">Thêm món ăn</button>
+    </div>
+    <div class="order-items">
+      <table id="orderTable">
+        <thead>
+          <tr>
+            <th>Món ăn</th>
+            <th>Giá</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="orderTableBody"></tbody>
+      </table>
+      <div class="total">Tổng số tiền: <span id="totalPrice">0</span> VNĐ</div>
+    </div>
+    <div class="form-group">
+      <button onclick="saveOrder()">Lưu đơn hàng</button>
+    </div>
+  </div>
+  
+  <script>
+    var menuItems = [];
+    var selectedItems = [];
+    var totalPrice = 0;
+
+    function loadMenu() {
+      google.script.run.withSuccessHandler(function(items) {
+        menuItems = items;
+        var select = document.getElementById('menu');
+        items.forEach(function(item) {
+          var option = document.createElement('option');
+          option.value = item.price;
+          option.text = item.name + ' - ' + item.price + ' VNĐ';
+          select.add(option);
+        });
+      }).getMenu();
+    }
+
+    function addItem() {
+      var menu = document.getElementById('menu');
+      var tableNumber = document.getElementById('tableNumber').value;
+      var price = menu.value;
+      var name = menu.options[menu.selectedIndex].text.split(' - ')[0];
+
+      if (tableNumber === '') {
+        alert('Vui lòng nhập số bàn.');
+        return;
+      }
+
+      if (price && name) {
+        // Add item to the list
+        selectedItems.push({ name: name, price: price });
+        totalPrice += parseFloat(price);
+
+        // Add item to the table
+        var tbody = document.getElementById('orderTableBody');
+        var row = tbody.insertRow();
+        var cell1 = row.insertCell(0);
+        var cell2 = row.insertCell(1);
+        var cell3 = row.insertCell(2);
+        cell1.textContent = name;
+        cell2.textContent = price + ' VNĐ';
+        var removeButton = document.createElement('button');
+        removeButton.textContent = 'Bớt món ăn';
+        removeButton.onclick = function() {
+          removeItem(name, price, row);
+        };
+        cell3.appendChild(removeButton);
+
+        // Update total price
+        document.getElementById('totalPrice').textContent = totalPrice.toFixed(0);
+      } else {
+        alert('Vui lòng chọn món ăn.');
+      }
+    }
+
+    function removeItem(name, price, row) {
+      // Remove item from the list
+      selectedItems = selectedItems.filter(item => item.name !== name || item.price !== price);
+      totalPrice -= parseFloat(price);
+
+      // Remove item from the table
+      document.getElementById('orderTableBody').removeChild(row);
+
+      // Update total price
+      document.getElementById('totalPrice').textContent = totalPrice.toFixed(0);
+    }
+
+    function saveOrder() {
+      var tableNumber = document.getElementById('tableNumber').value;
+      if (tableNumber === '' || selectedItems.length === 0) {
+        alert('Vui lòng nhập số bàn và thêm món ăn.');
+        return;
+      }
+
+      google.script.run.saveOrder(tableNumber, selectedItems, totalPrice);
+      alert('Đơn hàng đã được lưu!');
+      
+      // Reset form
+      document.getElementById('tableNumber').value = '';
+      document.getElementById('orderTableBody').innerHTML = '';
+      document.getElementById('totalPrice').textContent = '0';
+      totalPrice = 0;
+      selectedItems = [];
+    }
+
+    // Initialize the menu when the page loads
+    loadMenu();
+  </script>
+</body>
+</html>
